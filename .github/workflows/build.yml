@@ -1,0 +1,104 @@
+name: Build DEH-P650 V1.0.8.5 DIAG
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build.yml"
+      - "overlay/**"
+      - "tools/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ESP32 LDAC + XM cloud build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout deste pacote
+        uses: actions/checkout@v4
+
+      - name: Validar pacote DEH-P650
+        run: python3 tools/validate_cloud_package.py
+
+      - name: Baixar base LDAC / ESP-IDF 5.5.2 modificada
+        run: |
+          git clone --depth 1 \
+            https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED.git \
+            upstream
+          echo "UPSTREAM_COMMIT=$(git -C upstream rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Aplicar V1.0.8.5 DIAG XM1-XM2
+        run: |
+          test -f upstream/bt_audio_sink/main/bt/a2dp_sink_native.h
+          cp overlay/main/main.cpp upstream/bt_audio_sink/main/main.cpp
+          cp overlay/main/CMakeLists.txt upstream/bt_audio_sink/main/CMakeLists.txt
+
+          mkdir -p upstream/bt_audio_sink/main/bt
+          mkdir -p upstream/bt_audio_sink/main/dsp
+          mkdir -p upstream/bt_audio_sink/main/ipbus
+          mkdir -p upstream/bt_audio_sink/main/ota
+
+          cp overlay/main/bt/a2dp_sink_native.cpp upstream/bt_audio_sink/main/bt/a2dp_sink_native.cpp
+          cp overlay/main/dsp/bdk_bass_dsp.h upstream/bt_audio_sink/main/dsp/bdk_bass_dsp.h
+          cp overlay/main/dsp/bdk_bass_dsp.cpp upstream/bt_audio_sink/main/dsp/bdk_bass_dsp.cpp
+          cp overlay/main/ipbus/bdk_arduino_compat.h upstream/bt_audio_sink/main/ipbus/bdk_arduino_compat.h
+          cp overlay/main/ipbus/bdk_arduino_compat.cpp upstream/bt_audio_sink/main/ipbus/bdk_arduino_compat.cpp
+          cp overlay/main/ipbus/ipbus_xm_v326.h upstream/bt_audio_sink/main/ipbus/ipbus_xm_v326.h
+          cp overlay/main/ipbus/ipbus_xm_v326.cpp upstream/bt_audio_sink/main/ipbus/ipbus_xm_v326.cpp
+          cp overlay/main/ota/bt_ota.h upstream/bt_audio_sink/main/ota/bt_ota.h
+          cp overlay/main/ota/bt_ota.cpp upstream/bt_audio_sink/main/ota/bt_ota.cpp
+          cp overlay/partitions.csv upstream/bt_audio_sink/partitions.csv
+
+          python3 tools/PATCH_IDF_V108.py upstream/esp-idf
+          python3 tools/configure_sdkconfig.py upstream/bt_audio_sink/sdkconfig
+
+      - name: Instalar toolchain ESP-IDF
+        shell: bash
+        run: |
+          cd upstream/esp-idf
+          ./install.sh esp32
+
+      - name: Compilar firmware
+        shell: bash
+        run: |
+          set -e
+          source upstream/esp-idf/export.sh
+          cd upstream/bt_audio_sink
+          idf.py reconfigure
+          idf.py build
+
+      - name: Gerar BIN e DEHOTA
+        shell: bash
+        run: |
+          set -e
+          mkdir -p output
+          cp upstream/bt_audio_sink/build/bt_audio_sink.bin \
+             output/BDK_XM_V1_0_8_5_DIAG_SWAP_XM1_XM2.bin
+
+          python3 tools/GERAR_DEHOTA.py \
+             upstream/bt_audio_sink/build/bt_audio_sink.bin \
+             output/BDK_XM_V1_0_8_5_DIAG_SWAP_XM1_XM2.dehota
+
+          cp upstream/bt_audio_sink/build/bootloader/bootloader.bin output/bootloader_reference.bin
+          cp upstream/bt_audio_sink/build/partition_table/partition-table.bin output/partition-table_reference.bin
+
+          {
+            echo "Upstream commit: ${UPSTREAM_COMMIT}"
+            echo
+            sha256sum output/*
+          } > output/SHA256.txt
+
+          ls -lh output
+          cat output/SHA256.txt
+
+      - name: Publicar arquivos compilados
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEH-P650-V1.0.8.5-DIAG-XM1-XM2
+          path: output/
+          retention-days: 30
+          if-no-files-found: error

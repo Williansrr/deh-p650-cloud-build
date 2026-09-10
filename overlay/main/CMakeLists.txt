@@ -1,0 +1,31 @@
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "bt/a2dp_sink_native.cpp"
+        "dsp/bdk_bass_dsp.cpp"
+        "ipbus/bdk_arduino_compat.cpp"
+        "ipbus/ipbus_xm_v326.cpp"
+        "ota/bt_ota.cpp"
+    INCLUDE_DIRS
+        "."
+        "bt"
+        "dsp"
+        "ipbus"
+        "ota"
+    REQUIRES
+        bt
+        nvs_flash
+        esp_timer
+        app_update
+        esp_partition
+        esp_system
+        heap
+        driver
+        esp_driver_gpio
+        esp_driver_gptimer
+        esp_driver_i2s
+        esp_driver_rmt
+        freertos
+        hal
+        esp_rom
+)
