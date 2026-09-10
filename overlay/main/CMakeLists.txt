@@ -17,6 +17,7 @@ idf_component_register(
         nvs_flash
         esp_timer
         app_update
+        mbedtls
         esp_partition
         esp_system
         heap
@@ -29,3 +30,4 @@ idf_component_register(
         hal
         esp_rom
 )
+target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error=format-truncation)
