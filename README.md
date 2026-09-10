@@ -34,3 +34,54 @@ Os arquivos `bootloader_reference.bin` e `partition-table_reference.bin` são gu
 apenas como referência de build. Não precisam ser gravados.
 
 Se a Action ficar vermelha, abra a etapa que falhou, copie o erro e envie ao ChatGPT.
+	/
+
+## Internal Hardware Connection — Pioneer DEH-P650
+
+The project communicates directly with the Pioneer DEH-P650 internal IP-BUS interface through IC101, a HA12187FP.
+
+### ESP32 ↔ HA12187FP
+
+| Signal | ESP32 | Connection |
+|---|---:|---|
+| R / RX | GPIO16 | 10 kΩ → HA12187FP pin 2 |
+| RX divider | GPIO16 | 20 kΩ → HA12187FP pin 4 (GND) |
+| S1 monitor | GPIO17 | 10 kΩ → HA12187FP pin 1 |
+| S1 divider | GPIO17 | 20 kΩ → HA12187FP pin 4 (GND) |
+| STB | GPIO21 | 10 kΩ → HA12187FP pin 8 |
+| STB divider | GPIO21 | 20 kΩ → HA12187FP pin 4 (GND) |
+| TX | GPIO18 | → MM74HCT244N pin 2 (1A1) |
+| TX enable | GPIO19 | → MM74HCT244N pin 1 (/1OE) |
+| /OE pull-up | — | 10 kΩ between 3.3 V and GPIO19 / pin 1 |
+| IP-BUS TX output | MM74HCT244N pin 18 (1Y1) | 1 kΩ → HA12187FP pin 3 (S2) |
+
+### MM74HCT244N
+
+- Pin 20 → 5 V
+- Pin 10 → GND
+- 100 nF decoupling capacitor between pins 20 and 10
+- ESP32 and radio grounds must be common
+
+### PCM5102 DAC
+
+| PCM5102 | ESP32 |
+|---|---:|
+| BCK | GPIO25 |
+| LRCK / WS | GPIO32 |
+| DIN / DATA | GPIO33 |
+| VIN | 5 V |
+| GND | Common GND |
+| SCK | GND |
+| XSMT | 3.3 V |
+
+The PCM5102 analog audio output is routed to the DEH-P650 audio path associated with the IP-BUS source.
+
+### Notes
+
+This wiring represents the internal hardware configuration used during development and testing of the DEH-P650 IP-BUS emulator.
+
+The MM74HCT244N is used as the output buffer between the ESP32 and the HA12187FP IP-BUS interface.
+
+The ESP32 power supply connection inside the DEH-P650 is still under evaluation and is therefore not documented here as a final connection.
+
+Internal modifications to the head unit should only be performed with the unit disconnected from power.
