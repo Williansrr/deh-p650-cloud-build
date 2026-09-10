@@ -66,6 +66,7 @@ jobs:
         shell: bash
         run: |
           set -e
+          chmod +x upstream/esp-idf/tools/idf.py          
           source upstream/esp-idf/export.sh
           cd upstream/bt_audio_sink
           idf.py reconfigure
