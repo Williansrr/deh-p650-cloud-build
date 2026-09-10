@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           cd upstream/esp-idf
-          ./install.sh esp32
+          bash ./install.sh esp32
 
       - name: Compilar firmware
         shell: bash
