@@ -85,3 +85,26 @@ The MM74HCT244N is used as the output buffer between the ESP32 and the HA12187FP
 The ESP32 power supply connection inside the DEH-P650 is still under evaluation and is therefore not documented here as a final connection.
 
 Internal modifications to the head unit should only be performed with the unit disconnected from power.
+
+
+## XM IP-BUS Emulation
+
+The ESP32 firmware emulates a Pioneer XM tuner through the DEH-P650 IP-BUS interface.
+
+The current implementation is based on the behavior of Pioneer XM tuner families such as the GEX-P900XM / GEX-P910XM.
+
+No physical XM tuner module is required. The ESP32 presents itself to the head unit as an XM-compatible IP-BUS source and handles the communication required for source detection, control commands and display information.
+
+The XM emulation is integrated with the Bluetooth audio path used by this project, allowing the DEH-P650 to select and control the emulated XM source while audio is provided by the ESP32 and PCM5102 DAC.
+
+The current diagnostic firmware uses three XM profiles:
+
+- XM1: test audio/DSP profile
+- XM2: alternate test audio/DSP profile
+- XM3: HIFI PURE / bypass profile
+
+The XM implementation is located mainly in:
+
+`overlay/main/ipbus/ipbus_xm_v326.cpp`
+
+and is built together with the Bluetooth, DSP and OTA modules.
