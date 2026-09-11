@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          chmod +x upstream/esp-idf/tools/idf.py          
+          chmod +x upstream/esp-idf/tools/idf.py
           source upstream/esp-idf/export.sh
           cd upstream/bt_audio_sink
           idf.py reconfigure
@@ -95,24 +95,24 @@ jobs:
              output/DEH_P650_BDK_XM_V1_0_8_3_FULL_FACTORY_4MB.bin
 
           cat > output/FLASH_LAYOUT.txt <<'EOF'
-DEH-P650 / ESP32 - V1.0.8.3 FULL FACTORY
+          DEH-P650 / ESP32 - V1.0.8.3 FULL FACTORY
 
-A imagem FULL_FACTORY_4MB.bin representa os 4 MiB completos da flash.
-Uso pretendido: APAGAR A FLASH INTEIRA e gravar esta imagem em 0x000000.
+          A imagem FULL_FACTORY_4MB.bin representa os 4 MiB completos da flash.
+          Uso pretendido: APAGAR A FLASH INTEIRA e gravar esta imagem em 0x000000.
 
-Conteudo da imagem:
-  0x001000  bootloader
-  0x008000  partition table
-  0x009000  NVS apagada (0xFF)
-  0x00F000  PHY init apagada (0xFF)
-  0x010000  OTA data apagada (0xFF)
-  0x020000  BDK XM V1.0.8.3 em ota_0
-  0x1A0000  ota_1 apagada (0xFF)
-  0x320000  SPIFFS apagada (0xFF)
+          Conteudo da imagem:
+            0x001000  bootloader
+            0x008000  partition table
+            0x009000  NVS apagada (0xFF)
+            0x00F000  PHY init apagada (0xFF)
+            0x010000  OTA data apagada (0xFF)
+            0x020000  BDK XM V1.0.8.3 em ota_0
+            0x1A0000  ota_1 apagada (0xFF)
+            0x320000  SPIFFS apagada (0xFF)
 
-O erase total remove bonds Bluetooth, last_bda, estado OTA e qualquer NVS antiga.
-Depois sera necessario parear o celular novamente.
-EOF
+          O erase total remove bonds Bluetooth, last_bda, estado OTA e qualquer NVS antiga.
+          Depois sera necessario parear o celular novamente.
+          EOF
 
           {
             echo "Upstream commit: ${UPSTREAM_COMMIT}"
