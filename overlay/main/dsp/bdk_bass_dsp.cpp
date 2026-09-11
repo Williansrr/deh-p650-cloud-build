@@ -1,3 +1,4 @@
+
 #include "bdk_bass_dsp.h"
 
 #include <math.h>
@@ -515,6 +516,3 @@ void BDKBassDSP::processBlock(int32_t* interleavedStereo, size_t frames)
 
     m_stats.framesProcessed += (uint32_t)frames;
 }
-
-
-

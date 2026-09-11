@@ -1,3 +1,4 @@
+
 /*
  * BDK XM V1.0.7.1 - Pioneer DEH-P650 XM IP-BUS engine
  *
@@ -17,7 +18,6 @@
 #include "bdk_arduino_compat.h"
 #include "ipbus_xm_v326.h"
 #include "driver/gptimer.h"
-#include "nvs.h"
 #include <string.h>
 
 // PIONEER DEH-P650 - BDK XM V1.0.7.1 / XM V3.26 PROTOCOL CORE / LINK 0x11E APP 0x1E
@@ -286,72 +286,6 @@ uint8_t xmPresetNumber = 3;     // preserva P:3 observado
 uint8_t xmStatus61Byte7 = 0x13; // XM1 + P:3
 uint32_t xmBandChangeCount = 0;
 
-
-// V1.0.8.5 - persistencia da ultima banda XM em NVS.
-// Namespace/key independentes do Bluetooth para nao interferir nos bonds/last_bda.
-static uint8_t xmPersistedBand = 1;
-static bool xmPersistedBandLoaded = false;
-
-static uint8_t sanitizeXmBand(uint8_t band)
-{
-  return (band >= 1 && band <= 3) ? band : 1;
-}
-
-static void loadXmBandFromNvs()
-{
-  if (xmPersistedBandLoaded) return;
-
-  nvs_handle_t h = 0;
-  uint8_t band = 1;
-  esp_err_t err = nvs_open("xm_state", NVS_READONLY, &h);
-  if (err == ESP_OK)
-  {
-    uint8_t stored = 1;
-    if (nvs_get_u8(h, "last_band", &stored) == ESP_OK)
-    {
-      band = sanitizeXmBand(stored);
-    }
-    nvs_close(h);
-  }
-
-  xmPersistedBand = band;
-  xmPersistedBandLoaded = true;
-
-  Serial.print("XM banda restaurada da NVS: XM");
-  Serial.println(xmPersistedBand);
-}
-
-static void saveXmBandToNvs(uint8_t band)
-{
-  band = sanitizeXmBand(band);
-  xmPersistedBand = band;
-  xmPersistedBandLoaded = true;
-
-  nvs_handle_t h = 0;
-  esp_err_t err = nvs_open("xm_state", NVS_READWRITE, &h);
-  if (err != ESP_OK)
-  {
-    Serial.print("XM NVS open falhou: ");
-    Serial.println((int)err);
-    return;
-  }
-
-  err = nvs_set_u8(h, "last_band", band);
-  if (err == ESP_OK) err = nvs_commit(h);
-  nvs_close(h);
-
-  if (err == ESP_OK)
-  {
-    Serial.print("XM banda salva na NVS: XM");
-    Serial.println(band);
-  }
-  else
-  {
-    Serial.print("XM NVS save falhou: ");
-    Serial.println((int)err);
-  }
-}
-
 // V1.0.5 - DISPLAY / CANAIS
 //
 // Canais usados no runtime: CH001..CH255.
@@ -360,8 +294,7 @@ static void saveXmBandToNvs(uint8_t band)
 // Pagina principal: ARTISTA - FAIXA, passo de 650 ms.
 //
 #define XM_DISP_KEY 0xDD
-#define XM_FW_DISPLAY_VERSION "V1.0.8.5"
-#define XM_METADATA_PAGE_COUNT 5
+#define XM_METADATA_PAGE_COUNT 4
 #define XM_SCROLL_PERIOD_MS 650UL
 #define XM_SCROLL_START_PAUSE_MS 650UL
 
@@ -411,9 +344,9 @@ uint32_t xmScrollUpdateCount = 0;
 //
 // Limites conservadores:
 // - só arma após 5 s de sessão;
-// - 15 s sem frame valido = sessao considerada perdida.
+// - 7 s sem frame válido = sessão considerada perdida.
 #define XM_RECOVERY_ARM_DELAY_MS 5000UL
-#define XM_RECOVERY_SILENCE_MS  15000UL
+#define XM_RECOVERY_SILENCE_MS   7000UL
 
 uint32_t xmLastValidFrameMs = 0;
 uint32_t xmRecoveryArmAtMs = 0;
@@ -476,16 +409,7 @@ static void copyXmMetadataSource(char *dst, size_t dstSize)
     return;
   }
 
-  // 3o toque em DISP/SCRL: versao instalada do firmware.
   if (xmMetadataPage == 3)
-  {
-    strncpy(dst, XM_FW_DISPLAY_VERSION, dstSize - 1);
-    dst[dstSize - 1] = 0;
-    return;
-  }
-
-  // 4o toque: titulo isolado.
-  if (xmMetadataPage == 4)
   {
     strncpy(dst, title, dstSize - 1);
     dst[dstSize - 1] = 0;
@@ -3580,9 +3504,6 @@ void processXmCommand30(const AppFrame &f)
     // Audio profile follows the actual XM band.
     bdkXmBandChanged(xmBandNumber);
 
-    // V1.0.8.5: memoriza XM1/XM2/XM3 para o proximo boot.
-    saveXmBandToNvs(xmBandNumber);
-
     xmChannelDirty = true;
     xmChannelNotBeforeMs = millis();
     return;
@@ -3634,13 +3555,12 @@ void resetMetrics()
   xmLastProcessedKey = 0x00;
   xmLastCommandChangedChannel = false;
 
-  loadXmBandFromNvs();
-  xmBandNumber = sanitizeXmBand(xmPersistedBand);
+  xmBandNumber = 1;
   xmPresetNumber = 3;
-  xmStatus61Byte7 = (uint8_t)((xmBandNumber << 4) | (xmPresetNumber & 0x0F));
+  xmStatus61Byte7 = 0x13;
   xmBandChangeCount = 0;
 
-  bdkXmBandChanged(xmBandNumber);
+  bdkXmBandChanged(1);
 
   xmMetadataPage = 0;
   xmDispMetadataChangeCount = 0;
@@ -3831,7 +3751,7 @@ void runApplicationSession()
   Serial.println("IP-BUS PRIORITY: task=8 / ISR wake / runtime log quiet.");
   Serial.println("CHANNEL: IP-BUS only / CH001..CH255 / CH000 disabled.");
   Serial.println("BOOT: RX early + late-boot Multi-CD strategy.");
-  Serial.println("Recovery conservador: 15 s sem frame -> espera broadcast real do HU.");
+  Serial.println("Recovery: 7 s sem frame valido -> rearma boot automaticamente.");
   if (!startAppListener()) {
     Serial.println("*** FALHA LISTENER XM ***");
     return;
@@ -3935,21 +3855,9 @@ void executeXm()
 
   prepareBootCapture();
 
-  // V1.0.8.5 - RECOVERY CONSERVADOR:
-  // Se uma sessao que ja estava ativa foi perdida, NAO dispara late-boot
-  // repetitivo no meio do funcionamento do radio. Fica passivo ate receber
-  // o broadcast real de boot do DEH-P650. O late-boot rapido continua
-  // preservado apenas para a energizacao inicial normal.
-  if (xmRecoveryRequested)
-  {
-    g_xmForcedBootAttempts = XM_MAX_FORCED_BOOT_ATTEMPTS;
-    Serial.println("*** RECOVERY CONSERVADOR: aguardando broadcast real do HU; TX forcado suspenso ***");
-  }
-  else
-  {
-    g_xmForcedBootAttempts = 0;
-    g_xmNextForcedBootMs = millis() + XM_FIRST_FORCED_BOOT_MS;
-  }
+  // Tambem rearma late-boot apos perda/reentrada.
+  g_xmForcedBootAttempts = 0;
+  g_xmNextForcedBootMs = millis() + XM_FIRST_FORCED_BOOT_MS;
 
   runInProgress = false;
 }
@@ -4082,10 +3990,7 @@ static void ipbusXmSetupInternal()
     Serial.println("RX IP-BUS ja armado no inicio do app_main; captura preservada.");
   }
 
-  loadXmBandFromNvs();
-  xmBandNumber = sanitizeXmBand(xmPersistedBand);
-  xmStatus61Byte7 = (uint8_t)((xmBandNumber << 4) | (xmPresetNumber & 0x0F));
-  bdkXmBandChanged(xmBandNumber);
+  bdkXmBandChanged(1);
 
   g_bdkXmLinked = false;
   g_xmForcedBootAttempts = 0;
@@ -4377,6 +4282,3 @@ extern "C" void ipbusXmAvrcMetadata(
     return;
   }
 }
-
-
-

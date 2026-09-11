@@ -53,7 +53,7 @@
 #include "dsp/bdk_bass_dsp.h"
 
 static const char* TAG = "BDK_XM_V10";
-static const char* FW_VERSION  = "BDK XM V1.0.8.5 DIAG / SWAP AUDIO XM1-XM2";
+static const char* FW_VERSION  = "BDK XM V1.0.8.1 HIFI BBR6 EXTENDED / LDAC + XM + AUTO RECONNECT + OTA";
 static const char* DEVICE_NAME = "DEH-P650 WRD";
 
 // ------------------------------------------------------------
@@ -154,8 +154,8 @@ static BDKBassDSP g_dsp;
 // ============================================================
 // BDK XM V1.0.7.4 - XM BAND -> AUDIO PROFILE
 // ============================================================
-// DIAG: XM1 usa temporariamente o perfil limpo do XM2
-// DIAG: XM2 usa temporariamente o BBR6 do XM1
+// XM1 = V2.4 JBL BOOMBOX 3 / BBR6
+// XM2 = HIFI STAGE CORSA / time alignment motorista 1.55 ms L
 // XM3 = Hi-Fi maximum transparency: DSP bypass
 //
 // The IP-BUS task only requests a profile. The audio render task
@@ -168,16 +168,12 @@ static volatile bool g_profileChangePending = true;
 
 static BDKAudioProfile profileFromXmBand(uint8_t band)
 {
-    // DIAGNOSTICO CRUZADO:
-    // XM1 do radio -> perfil de audio originalmente usado pelo XM2 (limpo)
-    // XM2 do radio -> perfil BBR6 originalmente usado pelo XM1 (suspeito)
-    // XM3 do radio -> HIFI PURE BYPASS, sem alteracao
     switch (band) {
-        case 1: return BDK_AUDIO_PROFILE_XTREME4;
-        case 2: return BDK_AUDIO_PROFILE_BOOMBOX3;
+        case 2: return BDK_AUDIO_PROFILE_XTREME4;
         case 3: return BDK_AUDIO_PROFILE_HIFI;
+        case 1:
         default:
-            return BDK_AUDIO_PROFILE_XTREME4;
+            return BDK_AUDIO_PROFILE_BOOMBOX3;
     }
 }
 

@@ -1,4 +1,4 @@
-name: Build DEH-P650 V1.0.8.5 DIAG
+name: Build DEH-P650 V1.0.8.3 FULL FACTORY
 
 on:
   workflow_dispatch:
@@ -31,7 +31,7 @@ jobs:
             upstream
           echo "UPSTREAM_COMMIT=$(git -C upstream rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Aplicar V1.0.8.5 DIAG XM1-XM2
+      - name: Aplicar rollback V1.0.8.3 FULL FACTORY
         run: |
           test -f upstream/bt_audio_sink/main/bt/a2dp_sink_native.h
           cp overlay/main/main.cpp upstream/bt_audio_sink/main/main.cpp
@@ -78,14 +78,41 @@ jobs:
           set -e
           mkdir -p output
           cp upstream/bt_audio_sink/build/bt_audio_sink.bin \
-             output/BDK_XM_V1_0_8_5_DIAG_SWAP_XM1_XM2.bin
+             output/BDK_XM_V1_0_8_3_HIFI_BBR6_STAGE_CORSA.bin
 
           python3 tools/GERAR_DEHOTA.py \
              upstream/bt_audio_sink/build/bt_audio_sink.bin \
-             output/BDK_XM_V1_0_8_5_DIAG_SWAP_XM1_XM2.dehota
+             output/BDK_XM_V1_0_8_3_HIFI_BBR6_STAGE_CORSA.dehota
 
           cp upstream/bt_audio_sink/build/bootloader/bootloader.bin output/bootloader_reference.bin
           cp upstream/bt_audio_sink/build/partition_table/partition-table.bin output/partition-table_reference.bin
+
+
+          python3 tools/MAKE_FACTORY_IMAGE.py \
+             upstream/bt_audio_sink/build/bootloader/bootloader.bin \
+             upstream/bt_audio_sink/build/partition_table/partition-table.bin \
+             upstream/bt_audio_sink/build/bt_audio_sink.bin \
+             output/DEH_P650_BDK_XM_V1_0_8_3_FULL_FACTORY_4MB.bin
+
+          cat > output/FLASH_LAYOUT.txt <<'EOF'
+DEH-P650 / ESP32 - V1.0.8.3 FULL FACTORY
+
+A imagem FULL_FACTORY_4MB.bin representa os 4 MiB completos da flash.
+Uso pretendido: APAGAR A FLASH INTEIRA e gravar esta imagem em 0x000000.
+
+Conteudo da imagem:
+  0x001000  bootloader
+  0x008000  partition table
+  0x009000  NVS apagada (0xFF)
+  0x00F000  PHY init apagada (0xFF)
+  0x010000  OTA data apagada (0xFF)
+  0x020000  BDK XM V1.0.8.3 em ota_0
+  0x1A0000  ota_1 apagada (0xFF)
+  0x320000  SPIFFS apagada (0xFF)
+
+O erase total remove bonds Bluetooth, last_bda, estado OTA e qualquer NVS antiga.
+Depois sera necessario parear o celular novamente.
+EOF
 
           {
             echo "Upstream commit: ${UPSTREAM_COMMIT}"
@@ -99,7 +126,7 @@ jobs:
       - name: Publicar arquivos compilados
         uses: actions/upload-artifact@v4
         with:
-          name: DEH-P650-V1.0.8.5-DIAG-XM1-XM2
+          name: DEH-P650-V1.0.8.3-FULL-FACTORY
           path: output/
           retention-days: 30
           if-no-files-found: error
